@@ -118,22 +118,26 @@ class _TodoPageState extends State<TodoPage> {
           onPressed: Navigator.of(context).pop,
           child: const Text("No"),
         ),
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _todoItems.clear();
-              _localDataSource.saveTodoItems(_todoItems);
-              Navigator.of(context).pop();
-            });
-          },
-          child: Text(
-            "Yes",
-            style: Theme.of(context).textTheme.button?.copyWith(
-                  color: Colors.red,
-                ),
-          ),
-        ),
+        _buildDeleteAllConfirmButton(),
       ],
+    );
+  }
+
+  TextButton _buildDeleteAllConfirmButton() {
+    return TextButton(
+      onPressed: () {
+        setState(() {
+          _todoItems.clear();
+          _localDataSource.saveTodoItems(_todoItems);
+          Navigator.of(context).pop();
+        });
+      },
+      child: Text(
+        "Yes",
+        style: Theme.of(context).textTheme.button?.copyWith(
+              color: Colors.red,
+            ),
+      ),
     );
   }
 
@@ -157,64 +161,15 @@ class _TodoPageState extends State<TodoPage> {
     if (lastItem) _lastFocusNode = focusNode;
     return Dismissible(
       key: ValueKey(todoItem.id),
-      onDismissed: (direction) {
-        setState(() {
-          _todoItems.removeAt(index);
-          _localDataSource.saveTodoItems(_todoItems);
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Removed item'),
-            action: SnackBarAction(
-              label: "Undo",
-              onPressed: () {
-                setState(() {
-                  _todoItems.insert(index, todoItem);
-                  _localDataSource.saveTodoItems(_todoItems);
-                });
-              },
-            ),
-          ),
-        );
-      },
+      onDismissed: (direction) => _onDismissed(index, context, todoItem),
       background: Container(color: Colors.red),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
-          key: ValueKey(todoItem.id),
           children: [
-            Checkbox(
-              value: todoItem.done,
-              onChanged: (value) {
-                setState(() {
-                  _todoItems[index] = todoItem.copyWith(
-                    done: value,
-                  );
-                  if (todoItem.id != TodoItem.newItemId) {
-                    _localDataSource.saveTodoItems(_todoItems);
-                  }
-                });
-              },
-            ),
+            _buildItemCheckbox(todoItem, index),
             Expanded(
-              child: TextField(
-                focusNode: focusNode,
-                controller: TextEditingController(
-                  text: todoItem.description,
-                ),
-                minLines: 1,
-                maxLines: 5,
-                onChanged: (value) {
-                  final newItem = todoItem.id == TodoItem.newItemId;
-
-                  _todoItems[index] = todoItem.copyWith(
-                    id: newItem ? _todoItems.length : null,
-                    description: value,
-                  );
-                  _localDataSource.saveTodoItems(_todoItems);
-                },
-              ),
+              child: _buildItemTextField(focusNode, todoItem, index),
             ),
             Icon(
               Icons.menu,
@@ -222,6 +177,83 @@ class _TodoPageState extends State<TodoPage> {
             ),
             const SizedBox(width: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  TextField _buildItemTextField(
+    FocusNode? focusNode,
+    TodoItem todoItem,
+    int index,
+  ) {
+    return TextField(
+      focusNode: focusNode,
+      controller: TextEditingController(
+        text: todoItem.description,
+      ),
+      minLines: 1,
+      maxLines: 5,
+      onChanged: (value) {
+        final newItem = todoItem.id == TodoItem.newItemId;
+
+        _todoItems[index] = todoItem.copyWith(
+          id: newItem ? _todoItems.length : null,
+          description: value,
+        );
+        _localDataSource.saveTodoItems(_todoItems);
+      },
+    );
+  }
+
+  Checkbox _buildItemCheckbox(
+    TodoItem todoItem,
+    int index,
+  ) {
+    return Checkbox(
+      value: todoItem.done,
+      onChanged: (value) {
+        setState(() {
+          _todoItems[index] = todoItem.copyWith(
+            done: value,
+          );
+          if (todoItem.id != TodoItem.newItemId) {
+            _localDataSource.saveTodoItems(_todoItems);
+          }
+        });
+      },
+    );
+  }
+
+  void _onDismissed(
+    int index,
+    BuildContext context,
+    TodoItem todoItem,
+  ) {
+    setState(() {
+      _todoItems.removeAt(index);
+      _localDataSource.saveTodoItems(_todoItems);
+    });
+
+    _showUndoSnackbar(context, index, todoItem);
+  }
+
+  void _showUndoSnackbar(
+    BuildContext context,
+    int index,
+    TodoItem todoItem,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Removed item'),
+        action: SnackBarAction(
+          label: "Undo",
+          onPressed: () {
+            setState(() {
+              _todoItems.insert(index, todoItem);
+              _localDataSource.saveTodoItems(_todoItems);
+            });
+          },
         ),
       ),
     );
