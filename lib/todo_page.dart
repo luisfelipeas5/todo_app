@@ -141,7 +141,7 @@ class _TodoPageState extends State<TodoPage> {
     final focusNode = lastItem ? FocusNode() : null;
     if (lastItem) _lastFocusNode = focusNode;
     return TodoItemWidget(
-      key: ValueKey(todoItem),
+      key: Key("todo-item-${todoItem.id}"),
       todoItem: todoItem,
       focusNode: focusNode,
       onDismissed: (direction) => _onDismissed(index, context, todoItem),

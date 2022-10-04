@@ -13,8 +13,10 @@ import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
 import 'package:todo_app/widgets/dialog/delete_all_confirmation_dialog.dart';
+import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
 
 import 'widgets/dialog/delete_all_confirmation_dialog_tester.dart';
+import 'widgets/todo_item/todo_item_widget_tester.dart';
 
 void main() {
   late LocalDataSource localDataSource;
@@ -273,15 +275,18 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            final dragWidgetFinder0 = find.byKey(const ValueKey("drag-icon-0"));
+            final dragWidgetFinder0 = find.descendant(
+              of: find.byKey(const Key("todo-item-0")),
+              matching: TodoItemWidgetTester.getDragIconFinder(),
+            );
             final dragGesture = await tester.startGesture(
               tester.getCenter(dragWidgetFinder0),
             );
             await tester.pump(kLongPressTimeout + kPressTimeout);
 
-            final dragWidgetFinder1 = find.byKey(const ValueKey("drag-icon-1"));
+            final todoItemWidget1Finder = find.byKey(const Key("todo-item-1"));
             await dragGesture
-                .moveTo(tester.getBottomLeft(dragWidgetFinder1) * 2);
+                .moveTo(tester.getBottomLeft(todoItemWidget1Finder) * 2);
             await dragGesture.up();
 
             await tester.pumpAndSettle();
@@ -305,14 +310,18 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            final dragWidgetFinder1 = find.byKey(const ValueKey("drag-icon-1"));
+            final dragWidgetFinder1 = find.descendant(
+              of: find.byKey(const Key("todo-item-1")),
+              matching: TodoItemWidgetTester.getDragIconFinder(),
+            );
             final dragGesture = await tester.startGesture(
               tester.getCenter(dragWidgetFinder1),
             );
             await tester.pump(kLongPressTimeout + kPressTimeout);
 
-            final dragWidgetFinder0 = find.byKey(const ValueKey("drag-icon-0"));
-            await dragGesture.moveTo(tester.getTopLeft(dragWidgetFinder0) * -2);
+            final todoItemWidget0Finder = find.byKey(const Key("todo-item-0"));
+            await dragGesture
+                .moveTo(tester.getTopLeft(todoItemWidget0Finder) * -2);
             await dragGesture.up();
 
             await tester.pumpAndSettle();
@@ -337,7 +346,10 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            final dragWidgetFinder0 = find.byKey(const ValueKey("drag-icon-0"));
+            final dragWidgetFinder0 = find.descendant(
+              of: find.byKey(const Key("todo-item-0")),
+              matching: TodoItemWidgetTester.getDragIconFinder(),
+            );
             await tester.drag(
               dragWidgetFinder0,
               const Offset(-500, 0),
@@ -362,7 +374,10 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            final dragWidgetFinder0 = find.byKey(const ValueKey("drag-icon-0"));
+            final dragWidgetFinder0 = find.descendant(
+              of: find.byKey(const Key("todo-item-0")),
+              matching: TodoItemWidgetTester.getDragIconFinder(),
+            );
             await tester.drag(
               dragWidgetFinder0,
               const Offset(-500, 0),
@@ -376,41 +391,7 @@ void main() {
         );
       });
 
-      group("Checkbox", () {
-        testWidgets(
-          "given a todo list item with done = false, "
-          "when pumped, "
-          "then expects to find a checkbox not checked",
-          (tester) async {
-            final todoItem0 = _MockTodoItem();
-            when(() => todoItem0.done).thenReturn(false);
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            final finder = find.byType(Checkbox);
-            final checkbox = tester.widget(finder) as Checkbox;
-            expect(checkbox.value, isFalse);
-          },
-        );
-
-        testWidgets(
-          "given a todo list item with done = true, "
-          "when pumped, "
-          "then expects to find a checked checkbox",
-          (tester) async {
-            final todoItem0 = _MockTodoItem();
-            when(() => todoItem0.done).thenReturn(true);
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            final finder = find.byType(Checkbox);
-            final checkbox = tester.widget(finder) as Checkbox;
-            expect(checkbox.value, isTrue);
-          },
-        );
-
+      group("Update done", () {
         testWidgets(
           "given a todo list item with done = false, "
           "when checkbox of the item is tapped, "
@@ -425,7 +406,7 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            await tester.tap(find.byType(Checkbox));
+            await TodoItemWidgetTester.tapToChangeDone(tester);
 
             verify(
               () => localDataSource.saveTodoItems(
@@ -455,7 +436,7 @@ void main() {
 
             await pumpTodoPage(tester);
 
-            await tester.tap(find.byType(Checkbox));
+            await TodoItemWidgetTester.tapToChangeDone(tester);
 
             verify(
               () => localDataSource.saveTodoItems(
@@ -472,26 +453,7 @@ void main() {
         );
       });
 
-      group("TextField", () {
-        testWidgets(
-          "given a todo list item with a description, "
-          "when pumped, "
-          "then expects to find a text field with that description",
-          (tester) async {
-            const description = "mock description";
-
-            final todoItem0 = _MockTodoItem();
-            when(() => todoItem0.description).thenReturn(description);
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            final finder = find.byType(TextField);
-            final textField = tester.widget(finder) as TextField;
-            expect(textField.controller?.text, description);
-          },
-        );
-
+      group("Update description", () {
         testWidgets(
           "given a todo list item, "
           "when text field is editted, "
@@ -509,7 +471,10 @@ void main() {
 
             const newDescription = "new mock description";
             await tester.enterText(
-              find.byType(TextField),
+              find.descendant(
+                of: find.byKey(const Key("todo-item-0")),
+                matching: TodoItemWidgetTester.getDescriptionField(),
+              ),
               newDescription,
             );
 
@@ -533,7 +498,7 @@ void main() {
       testWidgets(
         "given a empty todo list, "
         "when floating action button is tapped, "
-        "then expects to find a checkbox unchecked",
+        "then expects to find TodoItemWidget with a new TodoItem",
         (tester) async {
           todoItems.clear();
 
@@ -542,29 +507,11 @@ void main() {
           await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
-          final finder = find.byType(Checkbox);
-          final checkbox = tester.widget(finder) as Checkbox;
-          expect(checkbox.value, isFalse);
-
-          await tester.pumpAndSettle();
-        },
-      );
-
-      testWidgets(
-        "given a empty todo list, "
-        "when floating action button is tapped, "
-        "then expects to find a empty text field",
-        (tester) async {
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.pumpAndSettle();
-
-          final finder = find.byType(TextField);
-          final textField = tester.widget(finder) as TextField;
-          expect(textField.controller?.text, isEmpty);
+          final finder = find.byType(TodoItemWidget);
+          final todoItemWidget = tester.widget(finder) as TodoItemWidget;
+          expect(todoItemWidget.todoItem.id, TodoItem.newItemId);
+          expect(todoItemWidget.todoItem.description, isNull);
+          expect(todoItemWidget.todoItem.done, isFalse);
 
           await tester.pumpAndSettle();
         },
@@ -643,7 +590,7 @@ void main() {
 
           const description = "mock description";
           await tester.enterText(
-            find.byType(TextField),
+            TodoItemWidgetTester.getDescriptionField(),
             description,
           );
 

@@ -20,7 +20,7 @@ class TodoItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: ValueKey(todoItem.id),
+      key: Key("dismissible-${todoItem.id}"),
       onDismissed: onDismissed,
       background: Container(color: Colors.red),
       child: Padding(
@@ -31,10 +31,7 @@ class TodoItemWidget extends StatelessWidget {
             Expanded(
               child: _buildItemTextField(),
             ),
-            Icon(
-              Icons.menu,
-              key: ValueKey("drag-icon-${todoItem.id}"),
-            ),
+            const Icon(Icons.menu),
             const SizedBox(width: 8),
           ],
         ),
