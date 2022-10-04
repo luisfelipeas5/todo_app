@@ -8,6 +8,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:todo_app/local_data_source.dart';
 import 'package:todo_app/todo_item.dart';
 import 'package:todo_app/todo_page.dart';
+import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
+import 'package:todo_app/widgets/actions/copy_action.dart';
+import 'package:todo_app/widgets/actions/delete_all_action.dart';
+import 'package:todo_app/widgets/actions/sort_action.dart';
+import 'package:todo_app/widgets/dialog/delete_all_confirmation_dialog.dart';
+
+import 'widgets/dialog/delete_all_confirmation_dialog_tester.dart';
 
 void main() {
   late LocalDataSource localDataSource;
@@ -34,7 +41,7 @@ void main() {
       when(localDataSource.getTodoItems).thenReturn(todoItems);
     });
 
-    group("Sort button", () {
+    group("SortAction", () {
       testWidgets(
         "given an empty todo list, "
         "when pumped,"
@@ -44,9 +51,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.sort,
-          );
+          final finder = find.byType(SortAction);
           expect(finder, findsNothing);
         },
       );
@@ -62,9 +67,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.sort,
-          );
+          final finder = find.byType(SortAction);
           expect(finder, findsNothing);
         },
       );
@@ -84,9 +87,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.sort,
-          );
+          final finder = find.byType(SortAction);
           expect(finder, findsOneWidget);
         },
       );
@@ -106,9 +107,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.sort,
-          );
+          final finder = find.byType(SortAction);
           await tester.tap(finder);
 
           expect(todoItems, [doneTodoItem, notDoneTodoItem]);
@@ -130,9 +129,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.sort,
-          );
+          final finder = find.byType(SortAction);
           await tester.tap(finder);
 
           expect(todoItems, [doneTodoItem, notDoneTodoItem]);
@@ -140,7 +137,7 @@ void main() {
       );
     });
 
-    group("Copy button", () {
+    group("CopyAction", () {
       testWidgets(
         "given an empty todo list item, "
         "when pumped, "
@@ -150,9 +147,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.copy,
-          );
+          final finder = find.byType(CopyAction);
           expect(finder, findsNothing);
         },
       );
@@ -185,9 +180,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.copy,
-          );
+          final finder = find.byType(CopyAction);
           await tester.tap(finder);
 
           expect(result, "[ ] not done\n[X] done");
@@ -195,7 +188,7 @@ void main() {
       );
     });
 
-    group("Delete all button", () {
+    group("DeleteAllAction", () {
       testWidgets(
         "given an empty todo list item, "
         "when pumped, "
@@ -205,9 +198,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.delete_forever,
-          );
+          final finder = find.byType(DeleteAllAction);
           expect(finder, findsNothing);
         },
       );
@@ -215,48 +206,19 @@ void main() {
       testWidgets(
         "given a todo list item, "
         "when delete all button is clicked, "
-        "then expects to find the confirmation dialog",
+        "then expects to find DeleteAllConfirmationDialog",
         (tester) async {
           todoItems.add(_MockTodoItem());
           todoItems.add(_MockTodoItem());
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.delete_forever,
-          );
+          final finder = find.byType(DeleteAllAction);
           await tester.tap(finder);
           await tester.pumpAndSettle();
 
-          final titleFinder = find.text("Do you want to clear all your list?");
-          expect(titleFinder, findsOneWidget);
-
-          final contentFinder = find.text(
-            "Pressing 'yes', all your list will be deleted and can't be restored",
-          );
-          expect(contentFinder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        "given a todo list item, "
-        "when delete all button is clicked and then 'no' button is clicked, "
-        "then expects to find the same items on the list",
-        (tester) async {
-          todoItems.add(_MockTodoItem());
-          todoItems.add(_MockTodoItem());
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.delete_forever,
-          );
-          await tester.tap(finder);
-          await tester.pumpAndSettle();
-
-          await tester.tap(find.text("No"));
-
-          expect(todoItems.length, 2);
+          final dialogFinder = find.byType(DeleteAllConfirmationDialog);
+          expect(dialogFinder, findsOneWidget);
         },
       );
 
@@ -275,13 +237,11 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          final finder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.delete_forever,
-          );
+          final finder = find.byType(DeleteAllAction);
           await tester.tap(finder);
           await tester.pumpAndSettle();
 
-          await tester.tap(find.text("Yes"));
+          await DeleteAllConfirmationDialogTester.callOnPressed(tester);
 
           expect(todoItems.isEmpty, isTrue);
         },
@@ -569,7 +529,7 @@ void main() {
       });
     });
 
-    group("FloatingActionButton", () {
+    group("AddFloatingActionButton", () {
       testWidgets(
         "given a empty todo list, "
         "when floating action button is tapped, "
@@ -579,7 +539,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           final finder = find.byType(Checkbox);
@@ -599,7 +559,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           final finder = find.byType(TextField);
@@ -619,7 +579,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           expect(todoItems.isNotEmpty, isTrue);
@@ -637,7 +597,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           registerFallbackValue(_FakeTodoItem());
@@ -656,8 +616,8 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           expect(todoItems.length, 1);
@@ -678,7 +638,7 @@ void main() {
 
           await pumpTodoPage(tester);
 
-          await tester.tap(find.byType(FloatingActionButton));
+          await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
 
           const description = "mock description";

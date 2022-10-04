@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:todo_app/local_data_source.dart';
 import 'package:todo_app/todo_item.dart';
+import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
@@ -60,7 +61,6 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 
-  //Não vale a pena transformar esse componente em um not-smart widget
   Widget _buildSortButton() {
     return SortAction(
       onPressed: () {
@@ -79,7 +79,6 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 
-  //Não vale a pena transformar esse componente em um not-smart widget
   Widget _buildCopyMethod() {
     return CopyAction(
       onPressed: () async {
@@ -98,7 +97,6 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 
-  //Não vale a pena transformar esse componente em um not-smart widget
   Widget _buildDeleteAllButton() {
     return DeleteAllAction(
       onPressed: () {
@@ -143,6 +141,7 @@ class _TodoPageState extends State<TodoPage> {
     final focusNode = lastItem ? FocusNode() : null;
     if (lastItem) _lastFocusNode = focusNode;
     return TodoItemWidget(
+      key: ValueKey(todoItem),
       todoItem: todoItem,
       focusNode: focusNode,
       onDismissed: (direction) => _onDismissed(index, context, todoItem),
@@ -207,9 +206,8 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 
-  //Não vale a pena transformar esse componente em um not-smart widget
-  FloatingActionButton _buildAddButton() {
-    return FloatingActionButton(
+  Widget _buildAddButton() {
+    return AddFloatingActionButton(
       onPressed: () async {
         if (_todoItems.isEmpty || _todoItems.last.id != TodoItem.newItemId) {
           setState(() {
@@ -219,7 +217,6 @@ class _TodoPageState extends State<TodoPage> {
         }
         _lastFocusNode?.requestFocus();
       },
-      child: const Icon(Icons.add),
     );
   }
 }
