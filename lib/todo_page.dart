@@ -9,7 +9,6 @@ import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
-import 'package:todo_app/widgets/dialog/delete_all_confirmation_dialog.dart';
 import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
 
 class TodoPage extends StatefulWidget {
@@ -36,9 +35,9 @@ class _TodoPageState extends State<TodoPage> {
           appBar: AppBar(
             title: const Text("TODO"),
             actions: [
-              if (state.showSortButton) _buildSortButton(),
-              if (state.showCopyButton) _buildCopyMethod(),
-              if (state.showDeleteAllButton) _buildDeleteAllButton(),
+              if (state.showSortButton) const SortAction(),
+              if (state.showCopyButton) const CopyAction(),
+              if (state.showDeleteAllButton) const DeleteAllAction(),
             ],
           ),
           body: ReorderableListView.builder(
@@ -49,7 +48,7 @@ class _TodoPageState extends State<TodoPage> {
             onReorder: _onReorder,
             itemBuilder: _itemBuilder,
           ),
-          floatingActionButton: _buildAddButton(),
+          floatingActionButton: const AddFloatingActionButton(),
         );
       },
     );
@@ -64,40 +63,6 @@ class _TodoPageState extends State<TodoPage> {
         break;
       default:
     }
-  }
-
-  Widget _buildSortButton() {
-    return SortAction(
-      onPressed: () => _bloc.add(TodoSortEvent()),
-    );
-  }
-
-  Widget _buildCopyMethod() {
-    return CopyAction(
-      onPressed: () => _bloc.add(TodoCopyEvent()),
-    );
-  }
-
-  Widget _buildDeleteAllButton() {
-    return DeleteAllAction(
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return _buildConfirmationDialog();
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildConfirmationDialog() {
-    return DeleteAllConfirmationDialog(
-      onConfirmPressed: () {
-        _bloc.add(TodoDeleteAllEvent());
-        Navigator.of(context).pop();
-      },
-    );
   }
 
   void _onReorder(int oldIndex, int newIndex) {
@@ -117,12 +82,6 @@ class _TodoPageState extends State<TodoPage> {
       todoItem: todoItem,
       focusNode: focusNode,
       index: index,
-    );
-  }
-
-  Widget _buildAddButton() {
-    return AddFloatingActionButton(
-      onPressed: () => _bloc.add(TodoAddItemEvent()),
     );
   }
 
