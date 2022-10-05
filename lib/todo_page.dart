@@ -116,60 +116,7 @@ class _TodoPageState extends State<TodoPage> {
       key: Key("todo-item-${todoItem.id}"),
       todoItem: todoItem,
       focusNode: focusNode,
-      onDismissed: (direction) => _onDismissed(index, context, todoItem),
-      onCheckboxChanged: (value) => _onCheckboxChanged(index, todoItem, value),
-      onTextFieldChanged: (value) =>
-          _onTextFieldChanged(todoItem, index, value),
-    );
-  }
-
-  void _onTextFieldChanged(TodoItem todoItem, int index, String value) {
-    _bloc.add(TodoDescriptionUpdateEvent(
-      todoItem: todoItem,
       index: index,
-      newDescription: value,
-    ));
-  }
-
-  void _onCheckboxChanged(int index, TodoItem todoItem, bool? value) {
-    _bloc.add(TodoDoneUpdateEvent(
-      todoItem: todoItem,
-      index: index,
-      newDoneValue: value ?? false,
-    ));
-  }
-
-  void _onDismissed(
-    int index,
-    BuildContext context,
-    TodoItem todoItem,
-  ) {
-    _bloc.add(TodoDismissedEvent(
-      todoItem: todoItem,
-      index: index,
-    ));
-
-    _showUndoSnackbar(context, index, todoItem);
-  }
-
-  void _showUndoSnackbar(
-    BuildContext context,
-    int index,
-    TodoItem todoItem,
-  ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Removed item'),
-        action: SnackBarAction(
-          label: "Undo",
-          onPressed: () {
-            _bloc.add(TodoUndoDismissedEvent(
-              todoItem: todoItem,
-              index: index,
-            ));
-          },
-        ),
-      ),
     );
   }
 
