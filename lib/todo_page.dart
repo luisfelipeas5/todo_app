@@ -68,17 +68,13 @@ class _TodoPageState extends State<TodoPage> {
 
   Widget _buildSortButton() {
     return SortAction(
-      onPressed: () {
-        _bloc.add(TodoSortEvent());
-      },
+      onPressed: () => _bloc.add(TodoSortEvent()),
     );
   }
 
   Widget _buildCopyMethod() {
     return CopyAction(
-      onPressed: () async {
-        _bloc.add(TodoCopyEvent());
-      },
+      onPressed: () => _bloc.add(TodoCopyEvent()),
     );
   }
 
