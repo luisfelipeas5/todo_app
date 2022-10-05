@@ -179,9 +179,7 @@ class _TodoPageState extends State<TodoPage> {
 
   Widget _buildAddButton() {
     return AddFloatingActionButton(
-      onPressed: () async {
-        _bloc.add(TodoAddItemEvent());
-      },
+      onPressed: () => _bloc.add(TodoAddItemEvent()),
     );
   }
 
