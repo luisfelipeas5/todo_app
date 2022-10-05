@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:todo_app/local_data_source.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:todo_app/bloc/todo_bloc.dart';
+import 'package:todo_app/bloc/todo_event.dart';
+import 'package:todo_app/bloc/todo_state.dart';
 import 'package:todo_app/todo_item.dart';
 import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
@@ -12,88 +15,66 @@ import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
 class TodoPage extends StatefulWidget {
   const TodoPage({
     super.key,
-    required this.localDataSource,
   });
-
-  final LocalDataSource localDataSource;
 
   @override
   State<TodoPage> createState() => _TodoPageState();
 }
 
 class _TodoPageState extends State<TodoPage> {
-  LocalDataSource get _localDataSource => widget.localDataSource;
-  List<TodoItem> _todoItems = List.empty(growable: true);
+  TodoBloc get _bloc => BlocProvider.of<TodoBloc>(context);
+
+  List<TodoItem> get _todoItems => _bloc.state.todoItems;
   FocusNode? _lastFocusNode;
 
   @override
-  void initState() {
-    super.initState();
-    _loadItems();
-  }
-
-  void _loadItems() async {
-    setState(() {
-      _todoItems = _localDataSource.getTodoItems();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("TODO"),
-        actions: [
-          if (_todoItems.any((element) => element.done)) _buildSortButton(),
-          if (_todoItems.isNotEmpty) _buildCopyMethod(),
-          if (_todoItems.isNotEmpty) _buildDeleteAllButton(),
-        ],
-      ),
-      body: ReorderableListView.builder(
-        padding: const EdgeInsets.only(
-          bottom: 56,
-        ),
-        itemCount: _todoItems.length,
-        onReorder: _onReorder,
-        itemBuilder: _itemBuilder,
-      ),
-      floatingActionButton: _buildAddButton(),
+    return BlocConsumer<TodoBloc, TodoState>(
+      listener: _todoBlocListener,
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("TODO"),
+            actions: [
+              if (state.showSortButton) _buildSortButton(),
+              if (state.showCopyButton) _buildCopyMethod(),
+              if (state.showDeleteAllButton) _buildDeleteAllButton(),
+            ],
+          ),
+          body: ReorderableListView.builder(
+            padding: const EdgeInsets.only(
+              bottom: 56,
+            ),
+            itemCount: _todoItems.length,
+            onReorder: _onReorder,
+            itemBuilder: _itemBuilder,
+          ),
+          floatingActionButton: _buildAddButton(),
+        );
+      },
     );
+  }
+
+  void _todoBlocListener(context, state) async {
+    switch (state.lastAction) {
+      case TodoAction.newItem:
+        return _focusOnLastNodeWithDelay();
+      case TodoAction.copied:
+        await Clipboard.setData(ClipboardData(text: state.textCopied));
+        break;
+      default:
+    }
   }
 
   Widget _buildSortButton() {
     return SortAction(
-      onPressed: () {
-        setState(() {
-          _todoItems.sort((todoItem0, todoItem1) {
-            if (todoItem0.done && !todoItem1.done) {
-              return -1;
-            }
-            if (!todoItem0.done && todoItem1.done) {
-              return 1;
-            }
-            return 0;
-          });
-        });
-      },
+      onPressed: () => _bloc.add(TodoSortEvent()),
     );
   }
 
   Widget _buildCopyMethod() {
     return CopyAction(
-      onPressed: () async {
-        final todoItemsAsString = _todoItems.map(
-          (e) {
-            if (e.done) {
-              return "[X] ${e.description}";
-            }
-            return "[ ] ${e.description}";
-          },
-        ).join("\n");
-        await Clipboard.setData(
-          ClipboardData(text: todoItemsAsString),
-        );
-      },
+      onPressed: () => _bloc.add(TodoCopyEvent()),
     );
   }
 
@@ -113,26 +94,17 @@ class _TodoPageState extends State<TodoPage> {
   Widget _buildConfirmationDialog() {
     return DeleteAllConfirmationDialog(
       onConfirmPressed: () {
-        setState(() {
-          _todoItems.clear();
-          _localDataSource.saveTodoItems(_todoItems);
-          Navigator.of(context).pop();
-        });
+        _bloc.add(TodoDeleteAllEvent());
+        Navigator.of(context).pop();
       },
     );
   }
 
-  void _onReorder(oldIndex, newIndex) {
-    setState(() {
-      final todoItem = _todoItems[oldIndex];
-      _todoItems.insert(newIndex, todoItem);
-      if (oldIndex > newIndex) {
-        _todoItems.removeAt(oldIndex + 1);
-      } else {
-        _todoItems.removeAt(oldIndex);
-      }
-      _localDataSource.saveTodoItems(_todoItems);
-    });
+  void _onReorder(int oldIndex, int newIndex) {
+    _bloc.add(TodoReorderEvent(
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+    ));
   }
 
   Widget _itemBuilder(BuildContext context, int index) {
@@ -152,24 +124,19 @@ class _TodoPageState extends State<TodoPage> {
   }
 
   void _onTextFieldChanged(TodoItem todoItem, int index, String value) {
-    final newItem = todoItem.id == TodoItem.newItemId;
-
-    _todoItems[index] = todoItem.copyWith(
-      id: newItem ? _todoItems.length : null,
-      description: value,
-    );
-    _localDataSource.saveTodoItems(_todoItems);
+    _bloc.add(TodoDescriptionUpdateEvent(
+      todoItem: todoItem,
+      index: index,
+      newDescription: value,
+    ));
   }
 
   void _onCheckboxChanged(int index, TodoItem todoItem, bool? value) {
-    setState(() {
-      _todoItems[index] = todoItem.copyWith(
-        done: value,
-      );
-      if (todoItem.id != TodoItem.newItemId) {
-        _localDataSource.saveTodoItems(_todoItems);
-      }
-    });
+    _bloc.add(TodoDoneUpdateEvent(
+      todoItem: todoItem,
+      index: index,
+      newDoneValue: value ?? false,
+    ));
   }
 
   void _onDismissed(
@@ -177,10 +144,10 @@ class _TodoPageState extends State<TodoPage> {
     BuildContext context,
     TodoItem todoItem,
   ) {
-    setState(() {
-      _todoItems.removeAt(index);
-      _localDataSource.saveTodoItems(_todoItems);
-    });
+    _bloc.add(TodoDismissedEvent(
+      todoItem: todoItem,
+      index: index,
+    ));
 
     _showUndoSnackbar(context, index, todoItem);
   }
@@ -196,10 +163,10 @@ class _TodoPageState extends State<TodoPage> {
         action: SnackBarAction(
           label: "Undo",
           onPressed: () {
-            setState(() {
-              _todoItems.insert(index, todoItem);
-              _localDataSource.saveTodoItems(_todoItems);
-            });
+            _bloc.add(TodoUndoDismissedEvent(
+              todoItem: todoItem,
+              index: index,
+            ));
           },
         ),
       ),
@@ -208,15 +175,12 @@ class _TodoPageState extends State<TodoPage> {
 
   Widget _buildAddButton() {
     return AddFloatingActionButton(
-      onPressed: () async {
-        if (_todoItems.isEmpty || _todoItems.last.id != TodoItem.newItemId) {
-          setState(() {
-            _todoItems.add(TodoItem.newItem());
-          });
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-        _lastFocusNode?.requestFocus();
-      },
+      onPressed: () => _bloc.add(TodoAddItemEvent()),
     );
+  }
+
+  void _focusOnLastNodeWithDelay() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    _lastFocusNode?.requestFocus();
   }
 }

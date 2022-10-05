@@ -1,10 +1,16 @@
 import 'dart:math';
 
+import 'package:bloc_test/bloc_test.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:todo_app/bloc/todo_bloc.dart';
+import 'package:todo_app/bloc/todo_event.dart';
+import 'package:todo_app/bloc/todo_state.dart';
 import 'package:todo_app/local_data_source.dart';
 import 'package:todo_app/todo_item.dart';
 import 'package:todo_app/todo_page.dart';
@@ -21,6 +27,8 @@ import 'widgets/todo_item/todo_item_widget_tester.dart';
 void main() {
   late LocalDataSource localDataSource;
   late List<TodoItem> todoItems;
+  late TodoBloc todoBloc;
+  late TodoState initialTodoState;
 
   Future<void> pumpTodoPage(WidgetTester tester) {
     return tester.pumpWidget(
@@ -28,8 +36,9 @@ void main() {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: TodoPage(
-          localDataSource: localDataSource,
+        home: BlocProvider.value(
+          value: todoBloc,
+          child: const TodoPage(),
         ),
       ),
     );
@@ -41,51 +50,38 @@ void main() {
 
       localDataSource = _MockLocalDataSource();
       when(localDataSource.getTodoItems).thenReturn(todoItems);
+
+      todoBloc = _MockTodoBloc();
+      initialTodoState = _MockTodoState();
+      when(() => initialTodoState.todoItems).thenReturn(todoItems);
+      whenListen(
+        todoBloc,
+        const Stream<TodoState>.empty(),
+        initialState: initialTodoState,
+      );
     });
 
     group("SortAction", () {
       testWidgets(
-        "given an empty todo list, "
-        "when pumped,"
-        " then not expects to find sort button",
-        (tester) async {
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(SortAction);
-          expect(finder, findsNothing);
-        },
-      );
-
-      testWidgets(
-        "given a todo list with no done items, "
-        "when pumped,"
-        " then not expects to find sort button",
-        (tester) async {
-          final mockTodoItem = _MockTodoItem();
-          when(() => mockTodoItem.done).thenReturn(false);
-          todoItems.add(mockTodoItem);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(SortAction);
-          expect(finder, findsNothing);
-        },
-      );
-
-      testWidgets(
-        "given a todo list with one done item, "
+        "given todoState with showSortButton = false, "
         "when pumped, "
-        " then expects to find sort button",
+        "then not expects to find sort button",
         (tester) async {
-          final mockTodoItem0 = _MockTodoItem();
-          when(() => mockTodoItem0.done).thenReturn(true);
-          todoItems.add(mockTodoItem0);
+          when(() => initialTodoState.showSortButton).thenReturn(false);
 
-          final mockTodoItem1 = _MockTodoItem();
-          when(() => mockTodoItem1.done).thenReturn(false);
-          todoItems.add(mockTodoItem1);
+          await pumpTodoPage(tester);
+
+          final finder = find.byType(SortAction);
+          expect(finder, findsNothing);
+        },
+      );
+
+      testWidgets(
+        "given todoState with showSortButton = true, "
+        "when pumped, "
+        "then expects to find sort button",
+        (tester) async {
+          when(() => initialTodoState.showSortButton).thenReturn(true);
 
           await pumpTodoPage(tester);
 
@@ -95,57 +91,31 @@ void main() {
       );
 
       testWidgets(
-        "given a todo list with one undone item at first and a done item at second, "
-        "when sort button is clicked, "
-        "then expects to find done item at first on list",
+        "given todoState with showSortButton = true, "
+        "when sort action is tapped, "
+        "then expects to add TodoSortEvent to TodoBloc",
         (tester) async {
-          final notDoneTodoItem = _MockTodoItem();
-          when(() => notDoneTodoItem.done).thenReturn(false);
-          todoItems.add(notDoneTodoItem);
-
-          final doneTodoItem = _MockTodoItem();
-          when(() => doneTodoItem.done).thenReturn(true);
-          todoItems.add(doneTodoItem);
+          when(() => initialTodoState.showSortButton).thenReturn(true);
 
           await pumpTodoPage(tester);
 
           final finder = find.byType(SortAction);
           await tester.tap(finder);
 
-          expect(todoItems, [doneTodoItem, notDoneTodoItem]);
-        },
-      );
-
-      testWidgets(
-        "given a todo list with first item with done = true, "
-        "when sort button is clicked,"
-        " then expects to find done item at first on list",
-        (tester) async {
-          final doneTodoItem = _MockTodoItem();
-          when(() => doneTodoItem.done).thenReturn(true);
-          todoItems.add(doneTodoItem);
-
-          final notDoneTodoItem = _MockTodoItem();
-          when(() => notDoneTodoItem.done).thenReturn(false);
-          todoItems.add(notDoneTodoItem);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(SortAction);
-          await tester.tap(finder);
-
-          expect(todoItems, [doneTodoItem, notDoneTodoItem]);
+          verify(
+            () => todoBloc.add(TodoSortEvent()),
+          ).called(1);
         },
       );
     });
 
     group("CopyAction", () {
       testWidgets(
-        "given an empty todo list item, "
+        "given todoState with showCopyButton = false, "
         "when pumped, "
-        "then not expects to find copy button",
+        "then not expects to find CopyAction",
         (tester) async {
-          todoItems.clear();
+          when(() => initialTodoState.showCopyButton).thenReturn(false);
 
           await pumpTodoPage(tester);
 
@@ -155,48 +125,45 @@ void main() {
       );
 
       testWidgets(
-        "given one item not done and another done"
-        "when copy button is clicked, "
-        "then expects to call flutter/platform - Clipboard.setData' with formatted text",
+        "given todoState with showCopyButton = true, "
+        "when pumped, "
+        "then expects to find CopyAction",
         (tester) async {
-          String? result;
-          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-            const OptionalMethodChannel('flutter/platform', JSONMethodCodec()),
-            (message) async {
-              if (message.method == 'Clipboard.setData') {
-                result = message.arguments['text'];
-              }
-              return;
-            },
-          );
+          when(() => initialTodoState.showCopyButton).thenReturn(true);
 
-          final notDoneTodoItem = _MockTodoItem();
-          when(() => notDoneTodoItem.done).thenReturn(false);
-          when(() => notDoneTodoItem.description).thenReturn("not done");
-          todoItems.add(notDoneTodoItem);
+          await pumpTodoPage(tester);
 
-          final doneTodoItem = _MockTodoItem();
-          when(() => doneTodoItem.done).thenReturn(true);
-          when(() => doneTodoItem.description).thenReturn("done");
-          todoItems.add(doneTodoItem);
+          final finder = find.byType(CopyAction);
+          expect(finder, findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        "given todoState with showCopyButton = true, "
+        "when CopyAction is tapped, "
+        "then expects to add TodoCopyEvent to TodoBloc",
+        (tester) async {
+          when(() => initialTodoState.showCopyButton).thenReturn(true);
 
           await pumpTodoPage(tester);
 
           final finder = find.byType(CopyAction);
           await tester.tap(finder);
 
-          expect(result, "[ ] not done\n[X] done");
+          verify(
+            () => todoBloc.add(TodoCopyEvent()),
+          ).called(1);
         },
       );
     });
 
     group("DeleteAllAction", () {
       testWidgets(
-        "given an empty todo list item, "
+        "given todoState with showDeleteAllButton = false, "
         "when pumped, "
-        "then not expects to find delete all button",
+        "then not expects to find DeleteAllAction",
         (tester) async {
-          todoItems.clear();
+          when(() => initialTodoState.showDeleteAllButton).thenReturn(false);
 
           await pumpTodoPage(tester);
 
@@ -206,12 +173,25 @@ void main() {
       );
 
       testWidgets(
-        "given a todo list item, "
+        "given todoState with showDeleteAllButton = true, "
+        "when pumped, "
+        "then expects to find DeleteAllAction",
+        (tester) async {
+          when(() => initialTodoState.showDeleteAllButton).thenReturn(true);
+
+          await pumpTodoPage(tester);
+
+          final finder = find.byType(DeleteAllAction);
+          expect(finder, findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        "given todoState with showDeleteAllButton = true, "
         "when delete all button is clicked, "
         "then expects to find DeleteAllConfirmationDialog",
         (tester) async {
-          todoItems.add(_MockTodoItem());
-          todoItems.add(_MockTodoItem());
+          when(() => initialTodoState.showDeleteAllButton).thenReturn(true);
 
           await pumpTodoPage(tester);
 
@@ -225,17 +205,11 @@ void main() {
       );
 
       testWidgets(
-        "given a todo list item, "
+        "given todoState with showDeleteAllButton = true, "
         "when delete all button is clicked and then 'yes' button is clicked, "
-        "then expects to find the same items on the list",
+        "then expects to add TodoDeleteAllEvent to TodoBloc",
         (tester) async {
-          todoItems.add(_MockTodoItem());
-          todoItems.add(_MockTodoItem());
-          when(
-            () => localDataSource.saveTodoItems(todoItems),
-          ).thenAnswer((_) async {
-            return true;
-          });
+          when(() => initialTodoState.showDeleteAllButton).thenReturn(true);
 
           await pumpTodoPage(tester);
 
@@ -245,7 +219,9 @@ void main() {
 
           await DeleteAllConfirmationDialogTester.callOnPressed(tester);
 
-          expect(todoItems.isEmpty, isTrue);
+          verify(
+            () => todoBloc.add(TodoDeleteAllEvent()),
+          ).called(1);
         },
       );
     });
@@ -263,7 +239,7 @@ void main() {
         testWidgets(
           "given todo item with id = 0 at first position, "
           "when first item is reordered to second item, "
-          "then expects to find todo item with id = 0 at the second position",
+          "then expects to add TodoReorderEvent to TodoBloc",
           (tester) async {
             final todoItem0 = _MockTodoItem();
             when(() => todoItem0.id).thenReturn(0);
@@ -286,19 +262,21 @@ void main() {
 
             final todoItemWidget1Finder = find.byKey(const Key("todo-item-1"));
             await dragGesture
-                .moveTo(tester.getBottomLeft(todoItemWidget1Finder) * 2);
+                .moveTo(tester.getBottomLeft(todoItemWidget1Finder));
             await dragGesture.up();
 
             await tester.pumpAndSettle();
 
-            expect(todoItems, [todoItem1, todoItem0]);
+            verify(
+              () => todoBloc.add(TodoReorderEvent(oldIndex: 0, newIndex: 1)),
+            ).called(1);
           },
         );
 
         testWidgets(
           "given todo item with id = 1 at second position, "
           "when second item is reordered to first item, "
-          "then expects to find todo item with id = 1 at the first position",
+          "then expects to add TodoReorderEvent to TodoBloc",
           (tester) async {
             final todoItem0 = _MockTodoItem();
             when(() => todoItem0.id).thenReturn(0);
@@ -321,12 +299,14 @@ void main() {
 
             final todoItemWidget0Finder = find.byKey(const Key("todo-item-0"));
             await dragGesture
-                .moveTo(tester.getTopLeft(todoItemWidget0Finder) * -2);
+                .moveTo(tester.getTopLeft(todoItemWidget0Finder) * -1);
             await dragGesture.up();
 
             await tester.pumpAndSettle();
 
-            expect(todoItems, [todoItem1, todoItem0]);
+            verify(
+              () => todoBloc.add(TodoReorderEvent(oldIndex: 1, newIndex: 0)),
+            ).called(1);
           },
         );
       });
@@ -335,7 +315,7 @@ void main() {
         testWidgets(
           "given a todo list item, "
           "when first item is swiped to left, "
-          "then not expects to find this item on the list",
+          "then not expects to add TodoDismissedEvent to TodoBloc",
           (tester) async {
             final todoItem0 = _MockTodoItem();
             when(() => todoItem0.id).thenReturn(0);
@@ -356,14 +336,19 @@ void main() {
             );
             await tester.pumpAndSettle();
 
-            expect(todoItems, [todoItem1]);
+            verify(
+              () => todoBloc.add(TodoDismissedEvent(
+                index: 0,
+                todoItem: todoItem0,
+              )),
+            ).called(1);
           },
         );
 
         testWidgets(
           "given a todo list item, "
           "when first item is swiped to left and tapped on 'undo' of Snackbar, "
-          "then expects to find this item on the list yet",
+          "then not expects to add TodoUndoDismissedEvent to TodoBloc",
           (tester) async {
             final todoItem0 = _MockTodoItem();
             when(() => todoItem0.id).thenReturn(0);
@@ -387,6 +372,12 @@ void main() {
             await tester.tap(find.text("Undo"));
 
             expect(todoItems, [todoItem0, todoItem1]);
+            verify(
+              () => todoBloc.add(TodoUndoDismissedEvent(
+                index: 0,
+                todoItem: todoItem0,
+              )),
+            ).called(1);
           },
         );
       });
@@ -395,7 +386,7 @@ void main() {
         testWidgets(
           "given a todo list item with done = false, "
           "when checkbox of the item is tapped, "
-          "then expects to find item with done = true",
+          "then expects to add TodoDoneUpdateEvent to TodoBloc with done = true",
           (tester) async {
             const todoItem0 = TodoItem(
               id: 0,
@@ -409,15 +400,11 @@ void main() {
             await TodoItemWidgetTester.tapToChangeDone(tester);
 
             verify(
-              () => localDataSource.saveTodoItems(
-                const [
-                  TodoItem(
-                    id: 0,
-                    description: "",
-                    done: true,
-                  )
-                ],
-              ),
+              () => todoBloc.add(TodoDoneUpdateEvent(
+                index: 0,
+                todoItem: todoItem0,
+                newDoneValue: true,
+              )),
             ).called(1);
           },
         );
@@ -425,7 +412,7 @@ void main() {
         testWidgets(
           "given a todo list item with done = true, "
           "when checkbox of the item is tapped, "
-          "then expects to find item with done = false",
+          "then expects to add TodoDoneUpdateEvent to TodoBloc with done = false",
           (tester) async {
             const todoItem0 = TodoItem(
               id: 0,
@@ -439,15 +426,11 @@ void main() {
             await TodoItemWidgetTester.tapToChangeDone(tester);
 
             verify(
-              () => localDataSource.saveTodoItems(
-                const [
-                  TodoItem(
-                    id: 0,
-                    description: "",
-                    done: false,
-                  )
-                ],
-              ),
+              () => todoBloc.add(TodoDoneUpdateEvent(
+                index: 0,
+                todoItem: todoItem0,
+                newDoneValue: false,
+              )),
             ).called(1);
           },
         );
@@ -457,7 +440,7 @@ void main() {
         testWidgets(
           "given a todo list item, "
           "when text field is editted, "
-          "then expects to find item with updated description",
+          "then expects to add TodoDescriptionUpdateEvent to TodoBloc",
           (tester) async {
             const oldDescription = "mock description";
             const todoItem0 = TodoItem(
@@ -479,15 +462,11 @@ void main() {
             );
 
             verify(
-              () => localDataSource.saveTodoItems(
-                const [
-                  TodoItem(
-                    id: 0,
-                    description: newDescription,
-                    done: false,
-                  )
-                ],
-              ),
+              () => todoBloc.add(TodoDescriptionUpdateEvent(
+                index: 0,
+                todoItem: todoItem0,
+                newDescription: newDescription,
+              )),
             ).called(1);
           },
         );
@@ -496,9 +475,8 @@ void main() {
 
     group("AddFloatingActionButton", () {
       testWidgets(
-        "given a empty todo list, "
         "when floating action button is tapped, "
-        "then expects to find TodoItemWidget with a new TodoItem",
+        "then expects to add TodoAddItemEvent to TodoBloc",
         (tester) async {
           todoItems.clear();
 
@@ -506,107 +484,79 @@ void main() {
 
           await tester.tap(find.byType(AddFloatingActionButton));
           await tester.pumpAndSettle();
-
-          final finder = find.byType(TodoItemWidget);
-          final todoItemWidget = tester.widget(finder) as TodoItemWidget;
-          expect(todoItemWidget.todoItem.id, TodoItem.newItemId);
-          expect(todoItemWidget.todoItem.description, isNull);
-          expect(todoItemWidget.todoItem.done, isFalse);
-
-          await tester.pumpAndSettle();
-        },
-      );
-
-      testWidgets(
-        "given a empty todo list, "
-        "when floating action button is tapped, "
-        "then expects to find new item on todo items",
-        (tester) async {
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.pumpAndSettle();
-
-          expect(todoItems.isNotEmpty, isTrue);
-          expect(todoItems.first.id, TodoItem.newItemId);
-
-          await tester.pumpAndSettle();
-        },
-      );
-
-      testWidgets(
-        "when floating action button is tapped, "
-        "then not call localDataSource.saveTodoItems",
-        (tester) async {
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.pumpAndSettle();
-
-          registerFallbackValue(_FakeTodoItem());
-          verifyNever(() => localDataSource.saveTodoItems(captureAny()));
-
-          await tester.pumpAndSettle();
-        },
-      );
-
-      testWidgets(
-        "given an empty todo list, "
-        "when floating action button is tapped twice, "
-        "then expect to find one new item on the list",
-        (tester) async {
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.pumpAndSettle();
-
-          expect(todoItems.length, 1);
-
-          await tester.pumpAndSettle();
-        },
-      );
-
-      testWidgets(
-        "given a empty todo list, "
-        "when floating action button is tapped and an text is entered to text field, "
-        "then expects to find the new item with a valid id",
-        (tester) async {
-          when(
-            () => localDataSource.saveTodoItems(captureAny()),
-          ).thenAnswer((_) async => true);
-          todoItems.clear();
-
-          await pumpTodoPage(tester);
-
-          await tester.tap(find.byType(AddFloatingActionButton));
-          await tester.pumpAndSettle();
-
-          const description = "mock description";
-          await tester.enterText(
-            TodoItemWidgetTester.getDescriptionField(),
-            description,
-          );
 
           verify(
-            () => localDataSource.saveTodoItems(
-              const [
-                TodoItem(
-                  id: 1,
-                  description: description,
-                  done: false,
-                )
-              ],
-            ),
+            () => todoBloc.add(TodoAddItemEvent()),
           ).called(1);
+        },
+      );
+    });
 
-          await tester.pumpAndSettle();
+    group("BlocListener", () {
+      late TodoState newStateEmitted;
+
+      setUp(() {
+        newStateEmitted = _MockTodoState();
+        when(() => newStateEmitted.lastAction).thenReturn(TodoAction.copied);
+        when(() => newStateEmitted.todoItems).thenReturn(todoItems);
+
+        whenListen(
+          todoBloc,
+          Stream<TodoState>.value(newStateEmitted),
+          initialState: initialTodoState,
+        );
+      });
+
+      testWidgets(
+        "when TodoBloc emits a TodoState with lastAction == TodoAction.copied, "
+        "then expects to call flutter/platform - Clipboard.setData' with formatted text",
+        (tester) async {
+          String? result;
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            const OptionalMethodChannel('flutter/platform', JSONMethodCodec()),
+            (message) async {
+              if (message.method == 'Clipboard.setData') {
+                result = message.arguments['text'];
+              }
+              return;
+            },
+          );
+
+          when(() => newStateEmitted.lastAction).thenReturn(TodoAction.copied);
+          const textCopied = "text copied";
+          when(() => newStateEmitted.textCopied).thenReturn(textCopied);
+
+          await pumpTodoPage(tester);
+
+          await tester.pump();
+
+          expect(result, textCopied);
+        },
+      );
+
+      testWidgets(
+        "when TodoBloc emits a TodoState with lastAction == TodoAction.newItem, "
+        "then expects to find focusNode of the last TodoItemWidget with focus",
+        (tester) async {
+          final fakeAsync = FakeAsync();
+          fakeAsync.run((async) async {
+            todoItems.add(_MockTodoItem());
+            when(() => newStateEmitted.lastAction)
+                .thenReturn(TodoAction.newItem);
+
+            await pumpTodoPage(tester);
+
+            await tester.pump();
+            async.elapse(const Duration(milliseconds: 500));
+
+            final lastTodoItemWidget = tester
+                .widgetList(
+                  find.byType(TodoItemWidget),
+                )
+                .last as TodoItemWidget;
+            expect(lastTodoItemWidget.focusNode?.hasFocus, isTrue);
+          });
+          fakeAsync.flushMicrotasks();
         },
       );
     });
@@ -623,4 +573,12 @@ class _MockTodoItem extends Mock implements TodoItem {
   }
 }
 
-class _FakeTodoItem extends Fake implements TodoItem {}
+class _MockTodoBloc extends Mock implements TodoBloc {}
+
+class _MockTodoState extends Mock implements TodoState {
+  _MockTodoState() {
+    when(() => showDeleteAllButton).thenReturn(false);
+    when(() => showSortButton).thenReturn(false);
+    when(() => showCopyButton).thenReturn(false);
+  }
+}
