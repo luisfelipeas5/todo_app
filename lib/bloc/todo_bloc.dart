@@ -35,7 +35,10 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     );
   }
 
-  FutureOr<void> _onSort(event, Emitter<TodoState> emit) async {
+  FutureOr<void> _onSort(
+    TodoSortEvent event,
+    Emitter<TodoState> emit,
+  ) async {
     final sortedList = state.todoItems.toList()
       ..sort((todoItem0, todoItem1) {
         if (todoItem0.done && !todoItem1.done) {
@@ -77,13 +80,15 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     final reorderList = state.todoItems.toList();
 
     final todoItem = reorderList[event.oldIndex];
-    reorderList.insert(event.newIndex, todoItem);
+
     if (event.oldIndex > event.newIndex) {
+      reorderList.insert(event.newIndex, todoItem);
       reorderList.removeAt(event.oldIndex + 1);
     } else {
+      reorderList.insert(event.newIndex + 1, todoItem);
       reorderList.removeAt(event.oldIndex);
     }
-    _localDataSource.saveTodoItems(state.todoItems);
+    _localDataSource.saveTodoItems(reorderList);
 
     emit(
       state.copyWith(
@@ -100,7 +105,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
     final updatedList = state.todoItems.toList();
     updatedList[event.index] = event.todoItem.copyWith(
-      id: newItem ? updatedList.length : null,
+      id: newItem ? updatedList.length - 1 : null,
       description: event.newDescription,
     );
     _localDataSource.saveTodoItems(updatedList);
