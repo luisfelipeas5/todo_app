@@ -18,10 +18,8 @@ import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
-import 'package:todo_app/widgets/dialog/delete_all_confirmation_dialog.dart';
 import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
 
-import 'widgets/dialog/delete_all_confirmation_dialog_tester.dart';
 import 'widgets/todo_item/todo_item_widget_tester.dart';
 
 void main() {
@@ -89,24 +87,6 @@ void main() {
           expect(finder, findsOneWidget);
         },
       );
-
-      testWidgets(
-        "given todoState with showSortButton = true, "
-        "when sort action is tapped, "
-        "then expects to add TodoSortEvent to TodoBloc",
-        (tester) async {
-          when(() => initialTodoState.showSortButton).thenReturn(true);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(SortAction);
-          await tester.tap(finder);
-
-          verify(
-            () => todoBloc.add(TodoSortEvent()),
-          ).called(1);
-        },
-      );
     });
 
     group("CopyAction", () {
@@ -137,24 +117,6 @@ void main() {
           expect(finder, findsOneWidget);
         },
       );
-
-      testWidgets(
-        "given todoState with showCopyButton = true, "
-        "when CopyAction is tapped, "
-        "then expects to add TodoCopyEvent to TodoBloc",
-        (tester) async {
-          when(() => initialTodoState.showCopyButton).thenReturn(true);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(CopyAction);
-          await tester.tap(finder);
-
-          verify(
-            () => todoBloc.add(TodoCopyEvent()),
-          ).called(1);
-        },
-      );
     });
 
     group("DeleteAllAction", () {
@@ -183,45 +145,6 @@ void main() {
 
           final finder = find.byType(DeleteAllAction);
           expect(finder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        "given todoState with showDeleteAllButton = true, "
-        "when delete all button is clicked, "
-        "then expects to find DeleteAllConfirmationDialog",
-        (tester) async {
-          when(() => initialTodoState.showDeleteAllButton).thenReturn(true);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(DeleteAllAction);
-          await tester.tap(finder);
-          await tester.pumpAndSettle();
-
-          final dialogFinder = find.byType(DeleteAllConfirmationDialog);
-          expect(dialogFinder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        "given todoState with showDeleteAllButton = true, "
-        "when delete all button is clicked and then 'yes' button is clicked, "
-        "then expects to add TodoDeleteAllEvent to TodoBloc",
-        (tester) async {
-          when(() => initialTodoState.showDeleteAllButton).thenReturn(true);
-
-          await pumpTodoPage(tester);
-
-          final finder = find.byType(DeleteAllAction);
-          await tester.tap(finder);
-          await tester.pumpAndSettle();
-
-          await DeleteAllConfirmationDialogTester.callOnPressed(tester);
-
-          verify(
-            () => todoBloc.add(TodoDeleteAllEvent()),
-          ).called(1);
         },
       );
     });
@@ -306,167 +229,6 @@ void main() {
 
             verify(
               () => todoBloc.add(TodoReorderEvent(oldIndex: 1, newIndex: 0)),
-            ).called(1);
-          },
-        );
-      });
-
-      group("Delete item", () {
-        testWidgets(
-          "given a todo list item, "
-          "when first item is swiped to left, "
-          "then not expects to add TodoDismissedEvent to TodoBloc",
-          (tester) async {
-            final todoItem0 = _MockTodoItem();
-            when(() => todoItem0.id).thenReturn(0);
-            todoItems.add(todoItem0);
-
-            final todoItem1 = _MockTodoItem();
-            todoItems.add(todoItem1);
-
-            await pumpTodoPage(tester);
-
-            final dragWidgetFinder0 = find.descendant(
-              of: find.byKey(const Key("todo-item-0")),
-              matching: TodoItemWidgetTester.getDragIconFinder(),
-            );
-            await tester.drag(
-              dragWidgetFinder0,
-              const Offset(-500, 0),
-            );
-            await tester.pumpAndSettle();
-
-            verify(
-              () => todoBloc.add(TodoDismissedEvent(
-                index: 0,
-                todoItem: todoItem0,
-              )),
-            ).called(1);
-          },
-        );
-
-        testWidgets(
-          "given a todo list item, "
-          "when first item is swiped to left and tapped on 'undo' of Snackbar, "
-          "then not expects to add TodoUndoDismissedEvent to TodoBloc",
-          (tester) async {
-            final todoItem0 = _MockTodoItem();
-            when(() => todoItem0.id).thenReturn(0);
-            todoItems.add(todoItem0);
-
-            final todoItem1 = _MockTodoItem();
-            todoItems.add(todoItem1);
-
-            await pumpTodoPage(tester);
-
-            final dragWidgetFinder0 = find.descendant(
-              of: find.byKey(const Key("todo-item-0")),
-              matching: TodoItemWidgetTester.getDragIconFinder(),
-            );
-            await tester.drag(
-              dragWidgetFinder0,
-              const Offset(-500, 0),
-            );
-            await tester.pumpAndSettle();
-
-            await tester.tap(find.text("Undo"));
-
-            expect(todoItems, [todoItem0, todoItem1]);
-            verify(
-              () => todoBloc.add(TodoUndoDismissedEvent(
-                index: 0,
-                todoItem: todoItem0,
-              )),
-            ).called(1);
-          },
-        );
-      });
-
-      group("Update done", () {
-        testWidgets(
-          "given a todo list item with done = false, "
-          "when checkbox of the item is tapped, "
-          "then expects to add TodoDoneUpdateEvent to TodoBloc with done = true",
-          (tester) async {
-            const todoItem0 = TodoItem(
-              id: 0,
-              description: "",
-              done: false,
-            );
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            await TodoItemWidgetTester.tapToChangeDone(tester);
-
-            verify(
-              () => todoBloc.add(TodoDoneUpdateEvent(
-                index: 0,
-                todoItem: todoItem0,
-                newDoneValue: true,
-              )),
-            ).called(1);
-          },
-        );
-
-        testWidgets(
-          "given a todo list item with done = true, "
-          "when checkbox of the item is tapped, "
-          "then expects to add TodoDoneUpdateEvent to TodoBloc with done = false",
-          (tester) async {
-            const todoItem0 = TodoItem(
-              id: 0,
-              description: "",
-              done: true,
-            );
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            await TodoItemWidgetTester.tapToChangeDone(tester);
-
-            verify(
-              () => todoBloc.add(TodoDoneUpdateEvent(
-                index: 0,
-                todoItem: todoItem0,
-                newDoneValue: false,
-              )),
-            ).called(1);
-          },
-        );
-      });
-
-      group("Update description", () {
-        testWidgets(
-          "given a todo list item, "
-          "when text field is editted, "
-          "then expects to add TodoDescriptionUpdateEvent to TodoBloc",
-          (tester) async {
-            const oldDescription = "mock description";
-            const todoItem0 = TodoItem(
-              id: 0,
-              description: oldDescription,
-              done: false,
-            );
-            todoItems.add(todoItem0);
-
-            await pumpTodoPage(tester);
-
-            const newDescription = "new mock description";
-            await tester.enterText(
-              find.descendant(
-                of: find.byKey(const Key("todo-item-0")),
-                matching: TodoItemWidgetTester.getDescriptionField(),
-              ),
-              newDescription,
-            );
-
-            verify(
-              () => todoBloc.add(TodoDescriptionUpdateEvent(
-                index: 0,
-                todoItem: todoItem0,
-                newDescription: newDescription,
-              )),
             ).called(1);
           },
         );

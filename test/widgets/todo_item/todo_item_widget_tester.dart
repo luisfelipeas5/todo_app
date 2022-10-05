@@ -7,12 +7,4 @@ class TodoItemWidgetTester {
       (widget) => widget is Icon && widget.icon == Icons.menu,
     );
   }
-
-  static Future<void> tapToChangeDone(WidgetTester tester) {
-    return tester.tap(find.byType(Checkbox));
-  }
-
-  static Finder getDescriptionField() {
-    return find.byType(TextField);
-  }
 }
