@@ -9,7 +9,7 @@ import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
-import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
+import 'package:todo_app/widgets/todo_item/todo_page_todo_item_widget.dart';
 
 class TodoPage extends StatefulWidget {
   const TodoPage({
@@ -77,7 +77,7 @@ class _TodoPageState extends State<TodoPage> {
     final lastItem = index == _todoItems.length - 1;
     final focusNode = lastItem ? FocusNode() : null;
     if (lastItem) _lastFocusNode = focusNode;
-    return TodoItemWidget(
+    return TodoPageTodoItemWidget(
       key: Key("todo-item-${todoItem.id}"),
       todoItem: todoItem,
       focusNode: focusNode,

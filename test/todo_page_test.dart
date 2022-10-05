@@ -18,9 +18,9 @@ import 'package:todo_app/widgets/actions/add_floating_action_button.dart';
 import 'package:todo_app/widgets/actions/copy_action.dart';
 import 'package:todo_app/widgets/actions/delete_all_action.dart';
 import 'package:todo_app/widgets/actions/sort_action.dart';
-import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
+import 'package:todo_app/widgets/todo_item/todo_page_todo_item_widget.dart';
 
-import 'widgets/todo_item/todo_item_widget_tester.dart';
+import 'widgets/todo_item/todo_page_todo_item_widget_tester.dart';
 
 void main() {
   late LocalDataSource localDataSource;
@@ -176,7 +176,7 @@ void main() {
 
             final dragWidgetFinder0 = find.descendant(
               of: find.byKey(const Key("todo-item-0")),
-              matching: TodoItemWidgetTester.getDragIconFinder(),
+              matching: TodoPageTodoItemWidgetTester.getDragIconFinder(),
             );
             final dragGesture = await tester.startGesture(
               tester.getCenter(dragWidgetFinder0),
@@ -213,7 +213,7 @@ void main() {
 
             final dragWidgetFinder1 = find.descendant(
               of: find.byKey(const Key("todo-item-1")),
-              matching: TodoItemWidgetTester.getDragIconFinder(),
+              matching: TodoPageTodoItemWidgetTester.getDragIconFinder(),
             );
             final dragGesture = await tester.startGesture(
               tester.getCenter(dragWidgetFinder1),
@@ -313,9 +313,9 @@ void main() {
 
             final lastTodoItemWidget = tester
                 .widgetList(
-                  find.byType(TodoItemWidget),
+                  find.byType(TodoPageTodoItemWidget),
                 )
-                .last as TodoItemWidget;
+                .last as TodoPageTodoItemWidget;
             expect(lastTodoItemWidget.focusNode?.hasFocus, isTrue);
           });
           fakeAsync.flushMicrotasks();

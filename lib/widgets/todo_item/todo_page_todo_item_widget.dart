@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:todo_app/bloc/todo_bloc.dart';
 import 'package:todo_app/bloc/todo_event.dart';
+import 'package:todo_app/not_smart_widgets/todo_item/todo_item_widget.dart';
 import 'package:todo_app/todo_item.dart';
 
-class TodoItemWidget extends StatefulWidget {
-  const TodoItemWidget({
+class TodoPageTodoItemWidget extends StatefulWidget {
+  const TodoPageTodoItemWidget({
     super.key,
     required this.todoItem,
     required this.index,
@@ -17,10 +18,10 @@ class TodoItemWidget extends StatefulWidget {
   final FocusNode? focusNode;
 
   @override
-  State<TodoItemWidget> createState() => _TodoItemWidgetState();
+  State<TodoPageTodoItemWidget> createState() => _TodoPageTodoItemWidgetState();
 }
 
-class _TodoItemWidgetState extends State<TodoItemWidget> {
+class _TodoPageTodoItemWidgetState extends State<TodoPageTodoItemWidget> {
   TodoBloc get _bloc => BlocProvider.of<TodoBloc>(context);
   final textController = TextEditingController();
 
@@ -32,30 +33,12 @@ class _TodoItemWidgetState extends State<TodoItemWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: Key("dismissible-${widget.todoItem.id}"),
+    return TodoItemWidget(
+      todoItem: widget.todoItem,
+      focusNode: widget.focusNode,
       onDismissed: _onDismissed,
-      background: Container(color: Colors.red),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            _buildItemCheckbox(),
-            Expanded(
-              child: _buildItemTextField(),
-            ),
-            const Icon(Icons.menu),
-            const SizedBox(width: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Checkbox _buildItemCheckbox() {
-    return Checkbox(
-      value: widget.todoItem.done,
-      onChanged: _onCheckboxChanged,
+      onCheckboxChanged: _onCheckboxChanged,
+      onTextFieldChanged: _onTextFieldChanged,
     );
   }
 
@@ -65,16 +48,6 @@ class _TodoItemWidgetState extends State<TodoItemWidget> {
       index: widget.index,
       newDoneValue: value ?? false,
     ));
-  }
-
-  TextField _buildItemTextField() {
-    return TextField(
-      focusNode: widget.focusNode,
-      controller: textController,
-      minLines: 1,
-      maxLines: 5,
-      onChanged: _onTextFieldChanged,
-    );
   }
 
   void _onTextFieldChanged(String value) {

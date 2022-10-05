@@ -1,39 +1,33 @@
 import 'dart:async';
 
-import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:todo_app/bloc/todo_bloc.dart';
-import 'package:todo_app/bloc/todo_event.dart';
-import 'package:todo_app/bloc/todo_state.dart';
+import 'package:todo_app/not_smart_widgets/todo_item/todo_item_widget.dart';
 import 'package:todo_app/todo_item.dart';
-import 'package:todo_app/widgets/todo_item/todo_item_widget.dart';
 
 void main() {
   late TodoItem todoItem;
-  late TodoBloc todoBloc;
-
-  const index = 198;
 
   Future<void> pumpTodoItemWidget(
     WidgetTester tester, {
     FocusNode? focusNode,
+    DismissDirectionCallback? onDismissed,
+    ValueChanged<bool?>? onCheckboxChanged,
+    ValueChanged<String>? onTextFieldChanged,
   }) {
     return tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: Scaffold(
-          body: BlocProvider.value(
-            value: todoBloc,
-            child: TodoItemWidget(
-              todoItem: todoItem,
-              index: index,
-              focusNode: focusNode,
-            ),
+        home: Material(
+          child: TodoItemWidget(
+            todoItem: todoItem,
+            onCheckboxChanged: onCheckboxChanged ?? (_) {},
+            onDismissed: onDismissed ?? (_) {},
+            onTextFieldChanged: onTextFieldChanged ?? (_) {},
+            focusNode: focusNode,
           ),
         ),
       ),
@@ -46,13 +40,6 @@ void main() {
       when(() => todoItem.id).thenReturn(0);
       when(() => todoItem.done).thenReturn(false);
       when(() => todoItem.description).thenReturn("");
-
-      todoBloc = _MockTodoBloc();
-      whenListen(
-        todoBloc,
-        const Stream<TodoState>.empty(),
-        initialState: _MockTodoState(),
-      );
     });
 
     group("Checkbox", () {
@@ -89,40 +76,44 @@ void main() {
       testWidgets(
         "given a todo item with done = false, "
         "when checkbox is tapped, "
-        "then expects to add TodoDoneUpdateEvent to TodoBloc with newDoneValue = true",
+        "then expects to call onCheckboxChanged callback with true",
         (tester) async {
           when(() => todoItem.done).thenReturn(false);
 
-          await pumpTodoItemWidget(tester);
+          bool? result;
+          onCheckboxChanged(changed) {
+            result = changed;
+          }
+
+          await pumpTodoItemWidget(
+            tester,
+            onCheckboxChanged: onCheckboxChanged,
+          );
           await tester.tap(find.byType(Checkbox));
 
-          verify(
-            () => todoBloc.add(TodoDoneUpdateEvent(
-              index: index,
-              todoItem: todoItem,
-              newDoneValue: true,
-            )),
-          ).called(1);
+          expect(result, isTrue);
         },
       );
 
       testWidgets(
         "given a todo item with done = true, "
         "when checkbox is tapped, "
-        "then expects to add TodoDoneUpdateEvent to TodoBloc with newDoneValue = false",
+        "then expects to call onCheckboxChanged callback with false",
         (tester) async {
           when(() => todoItem.done).thenReturn(true);
 
-          await pumpTodoItemWidget(tester);
+          bool? result;
+          onCheckboxChanged(changed) {
+            result = changed;
+          }
+
+          await pumpTodoItemWidget(
+            tester,
+            onCheckboxChanged: onCheckboxChanged,
+          );
           await tester.tap(find.byType(Checkbox));
 
-          verify(
-            () => todoBloc.add(TodoDoneUpdateEvent(
-              index: index,
-              todoItem: todoItem,
-              newDoneValue: false,
-            )),
-          ).called(1);
+          expect(result, isFalse);
         },
       );
     });
@@ -147,9 +138,17 @@ void main() {
       testWidgets(
         "given a todo item with done = false, "
         "when checkbox is tapped, "
-        "then expects to add TodoDescriptionUpdateEvent to TodoBloc",
+        "then expects to call onCheckboxChanged callback with true",
         (tester) async {
-          await pumpTodoItemWidget(tester);
+          String? result;
+          onTextFieldChanged(description) {
+            result = description;
+          }
+
+          await pumpTodoItemWidget(
+            tester,
+            onTextFieldChanged: onTextFieldChanged,
+          );
 
           const newDescription = "new mocked description";
           await tester.enterText(
@@ -157,13 +156,7 @@ void main() {
             newDescription,
           );
 
-          verify(
-            () => todoBloc.add(TodoDescriptionUpdateEvent(
-              index: index,
-              todoItem: todoItem,
-              newDescription: newDescription,
-            )),
-          ).called(1);
+          expect(result, newDescription);
         },
       );
     });
@@ -171,9 +164,17 @@ void main() {
     group("Dismissible", () {
       testWidgets(
         "when drag icon widget and swiped to left, "
-        "then expects to add TodoDismissedEvent to TodoBloc",
+        "then expects to call onDismissed",
         (tester) async {
-          await pumpTodoItemWidget(tester);
+          final completer = Completer();
+          onDismissed(direction) {
+            completer.complete();
+          }
+
+          await pumpTodoItemWidget(
+            tester,
+            onDismissed: onDismissed,
+          );
 
           final dragIconFinder = find.byWidgetPredicate(
             (widget) => widget is Icon && widget.icon == Icons.menu,
@@ -184,38 +185,7 @@ void main() {
           );
           await tester.pumpAndSettle();
 
-          verify(
-            () => todoBloc.add(TodoDismissedEvent(
-              index: index,
-              todoItem: todoItem,
-            )),
-          ).called(1);
-        },
-      );
-
-      testWidgets(
-        "when drag icon widget and swiped to left and tapped on 'undo' of Snackbar, "
-        "then expects to add TodoUndoDismissedEvent to TodoBloc",
-        (tester) async {
-          await pumpTodoItemWidget(tester);
-
-          final dragIconFinder = find.byWidgetPredicate(
-            (widget) => widget is Icon && widget.icon == Icons.menu,
-          );
-          await tester.drag(
-            dragIconFinder,
-            const Offset(-1000, 0),
-          );
-          await tester.pumpAndSettle();
-
-          await tester.tap(find.text("Undo"));
-
-          verify(
-            () => todoBloc.add(TodoUndoDismissedEvent(
-              index: index,
-              todoItem: todoItem,
-            )),
-          ).called(1);
+          expect(completer.isCompleted, isTrue);
         },
       );
     });
@@ -223,13 +193,3 @@ void main() {
 }
 
 class _MockTodoItem extends Mock implements TodoItem {}
-
-class _MockTodoBloc extends Mock implements TodoBloc {}
-
-class _MockTodoState extends Mock implements TodoState {
-  _MockTodoState() {
-    when(() => showDeleteAllButton).thenReturn(false);
-    when(() => showSortButton).thenReturn(false);
-    when(() => showCopyButton).thenReturn(false);
-  }
-}
