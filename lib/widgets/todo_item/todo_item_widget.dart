@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:todo_app/todo_item.dart';
 
-class TodoItemWidget extends StatelessWidget {
+class TodoItemWidget extends StatefulWidget {
   const TodoItemWidget({
     super.key,
     required this.todoItem,
@@ -18,10 +18,23 @@ class TodoItemWidget extends StatelessWidget {
   final ValueChanged<String> onTextFieldChanged;
 
   @override
+  State<TodoItemWidget> createState() => _TodoItemWidgetState();
+}
+
+class _TodoItemWidgetState extends State<TodoItemWidget> {
+  final textController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    textController.text = widget.todoItem.description ?? "";
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: Key("dismissible-${todoItem.id}"),
-      onDismissed: onDismissed,
+      key: Key("dismissible-${widget.todoItem.id}"),
+      onDismissed: widget.onDismissed,
       background: Container(color: Colors.red),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -41,20 +54,18 @@ class TodoItemWidget extends StatelessWidget {
 
   Checkbox _buildItemCheckbox() {
     return Checkbox(
-      value: todoItem.done,
-      onChanged: onCheckboxChanged,
+      value: widget.todoItem.done,
+      onChanged: widget.onCheckboxChanged,
     );
   }
 
   TextField _buildItemTextField() {
     return TextField(
-      focusNode: focusNode,
-      controller: TextEditingController(
-        text: todoItem.description,
-      ),
+      focusNode: widget.focusNode,
+      controller: textController,
       minLines: 1,
       maxLines: 5,
-      onChanged: onTextFieldChanged,
+      onChanged: widget.onTextFieldChanged,
     );
   }
 }
